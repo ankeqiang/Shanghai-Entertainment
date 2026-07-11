@@ -2,7 +2,7 @@
 
 An interactive [Streamlit](https://streamlit.io) dashboard for exploring the
 **Leisure_ALL** historical database of Shanghai theatre, opera, and cinema
-programmes (**1907–1991**), reconstructed from a FileMaker export.
+programmes (**1907–1966**), reconstructed from a FileMaker export.
 
 The source data was transcribed from period newspapers (*申报 Shenbao*,
 *新闻报 Xinwenbao*, …) and covers tens of thousands of shows across the great

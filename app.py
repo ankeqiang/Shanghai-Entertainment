@@ -2,7 +2,7 @@
 Shanghai Entertainment Dashboard
 ================================
 An interactive explorer for the Leisure_ALL historical database of Shanghai
-theatre, opera and cinema programmes (1907-1991), reconstructed from a
+theatre, opera and cinema programmes (1907-1966), reconstructed from a
 FileMaker export into three linked tables: shows, performed_items, performers.
 
 Run locally:
@@ -56,7 +56,7 @@ def q(sql: str, params: tuple = ()) -> pd.DataFrame:
 @st.cache_data
 def bounds() -> tuple[int, int]:
     df = q("SELECT MIN(year) lo, MAX(year) hi FROM shows WHERE year IS NOT NULL")
-    return int(df.lo[0]), int(df.hi[0])
+    return int(df.lo[0]), min(int(df.hi[0]), 1966)
 
 
 @st.cache_data
@@ -110,7 +110,7 @@ WHERE, PARAMS = where_clause(years, sel_genres, sel_venues)
 # Header + KPIs
 # --------------------------------------------------------------------------
 
-st.title("Shanghai Entertainment, 1907–1991")
+st.title("Shanghai Entertainment, 1907–1966")
 st.caption(
     "Theatre, opera, and cinema programmes transcribed from period newspapers."
 )
