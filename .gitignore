@@ -1,0 +1,23 @@
+# Raw FileMaker exports (large; the SQLite DB is derived from these)
+data/raw/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# SQLite transient files (never commit these)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Streamlit
+.streamlit/secrets.toml
