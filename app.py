@@ -79,6 +79,41 @@ def venue_options() -> list[str]:
     return df.venue.tolist()
 
 
+@st.cache_data
+def show_meta(show_id: str) -> pd.DataFrame:
+    """Show-level metadata for a single show_id."""
+    return q(
+        "SELECT date_iso, venue, ticket_price, source "
+        "FROM shows WHERE show_id = ?",
+        (show_id,),
+    )
+
+
+@st.cache_data
+def show_items(show_id: str) -> pd.DataFrame:
+    """All performed items belonging to one show, with performers per item.
+
+    This is the equivalent of the FileMaker 'Show' button: from any single
+    performed item it reconstitutes the full set of items on the same bill.
+    """
+    return q(
+        """
+        SELECT pi.title                                   AS "Title",
+               pi.genre                                   AS "Genre",
+               pi.show_time                               AS "Show time",
+               pi.advertising_label                       AS "Label",
+               (SELECT GROUP_CONCAT(pf.performer_name, '、')
+                  FROM performers pf
+                 WHERE pf.item_id = pi.item_id
+                   AND pf.performer_name <> '')           AS "Performers"
+        FROM performed_items pi
+        WHERE pi.show_id = ?
+        ORDER BY pi.item_id
+        """,
+        (show_id,),
+    )
+
+
 def where_clause(years, genres, venues, performer):
     """Build a SQL WHERE fragment + params for the item-level joined view."""
     conds, params = ["s.year BETWEEN ? AND ?"], [years[0], years[1]]
@@ -449,8 +484,9 @@ with tab_perf:
     if name:
         appearances = q(
             """
-            SELECT s.date_iso AS date, s.venue AS venue, pi.title AS title,
-                   pi.genre AS genre, pi.show_time AS show_time
+            SELECT pi.show_id AS show_id, s.date_iso AS date, s.venue AS venue,
+                   pi.title AS title, pi.genre AS genre,
+                   pi.show_time AS show_time
             FROM performers pf
             JOIN performed_items pi ON pf.item_id = pi.item_id
             JOIN shows s ON pi.show_id = s.show_id
@@ -473,7 +509,43 @@ with tab_perf:
                            title=f"{name} — appearances per year"),
                     width="stretch",
                 )
-            st.dataframe(appearances, width="stretch", hide_index=True)
+            st.caption("Click any appearance to reconstitute the full show.")
+            perf_event = st.dataframe(
+                appearances, width="stretch", hide_index=True,
+                on_select="rerun", selection_mode="single-row",
+                key="perf_appearances",
+            )
+            perf_sel = (
+                perf_event.selection.rows
+                if perf_event and perf_event.selection else []
+            )
+            if perf_sel:
+                picked = appearances.iloc[perf_sel[0]]
+                show_id = picked["show_id"]
+                st.divider()
+                st.subheader(
+                    f"🎭 Full show featuring {name} — “{picked['title']}”"
+                )
+                meta = show_meta(show_id)
+                if not meta.empty:
+                    m = meta.iloc[0]
+                    bits = []
+                    if m["venue"]:
+                        bits.append(f"**Venue:** {m['venue']}")
+                    if m["date_iso"]:
+                        bits.append(f"**Date:** {m['date_iso']}")
+                    if m["ticket_price"]:
+                        bits.append(f"**Ticket price:** {m['ticket_price']}")
+                    if bits:
+                        st.markdown("  ·  ".join(bits))
+                    if m["source"]:
+                        st.caption(f"Source: {m['source']}")
+                bill = show_items(show_id)
+                st.write(
+                    f"This show (`{show_id}`) comprises **{len(bill)}** "
+                    f"performed item(s):"
+                )
+                st.dataframe(bill, width="stretch", hide_index=True)
 
     st.divider()
     st.subheader("Most frequently billed performers")
@@ -506,8 +578,8 @@ with tab_browse:
         conds.append("pi.title LIKE ?")
         params.append(f"%{term}%")
     sql = f"""
-        SELECT s.date_iso AS date, s.venue AS venue, pi.title AS title,
-               pi.genre AS genre, pi.show_time AS show_time,
+        SELECT pi.show_id AS show_id, s.date_iso AS date, s.venue AS venue,
+               pi.title AS title, pi.genre AS genre, pi.show_time AS show_time,
                pi.advertising_label AS label, s.ticket_price AS price,
                s.source AS source
         FROM performed_items pi
@@ -518,10 +590,42 @@ with tab_browse:
     """
     rows = q(sql, tuple(params))
     st.write(f"Showing up to 2,000 of the matching items ({len(rows):,} shown).")
-    st.dataframe(rows, width="stretch", hide_index=True)
+    st.caption("Click any row to reconstitute its full show below.")
+    event = st.dataframe(
+        rows, width="stretch", hide_index=True,
+        on_select="rerun", selection_mode="single-row", key="browse_table",
+    )
     st.download_button(
         "⬇ Download these results (CSV)",
         rows.to_csv(index=False).encode("utf-8-sig"),
         file_name="shanghai_entertainment_query.csv",
         mime="text/csv",
     )
+
+    # ---- "Show" reconstitution (the FileMaker "Show" button) ---------------
+    selected = event.selection.rows if event and event.selection else []
+    if selected:
+        picked = rows.iloc[selected[0]]
+        show_id = picked["show_id"]
+        st.divider()
+        st.subheader(f"🎭 Full show for “{picked['title']}”")
+        meta = show_meta(show_id)
+        if not meta.empty:
+            m = meta.iloc[0]
+            bits = []
+            if m["venue"]:
+                bits.append(f"**Venue:** {m['venue']}")
+            if m["date_iso"]:
+                bits.append(f"**Date:** {m['date_iso']}")
+            if m["ticket_price"]:
+                bits.append(f"**Ticket price:** {m['ticket_price']}")
+            if bits:
+                st.markdown("  ·  ".join(bits))
+            if m["source"]:
+                st.caption(f"Source: {m['source']}")
+        bill = show_items(show_id)
+        st.write(
+            f"This show (`{show_id}`) comprises **{len(bill)}** "
+            f"performed item(s):"
+        )
+        st.dataframe(bill, width="stretch", hide_index=True)
