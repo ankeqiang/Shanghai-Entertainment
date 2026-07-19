@@ -165,9 +165,8 @@ st.caption(
     "newspaper advertisements."
 )
 st.markdown(
-    "#### 👥 Compiled by **Christian Henriot** "
-    "(Aix-Marseille University) and **Jiang Jin 姜进** "
-    "(East China Normal University 华东师范大学)"
+    "👥 **Christian Henriot** (Aix-Marseille University) and "
+    "**Jiang Jin 姜进** (East China Normal University 华东师范大学)"
 )
 
 kpi = q(
