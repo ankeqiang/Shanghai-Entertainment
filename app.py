@@ -164,9 +164,10 @@ st.caption(
     "Theater, opera, and cinema programs transcribed from "
     "newspaper advertisements."
 )
-st.caption(
-    "Compiled by Christian Henriot (Aix-Marseille University) and "
-    "Jiang Jin 姜进 (East China Normal University 华东师范大学)."
+st.markdown(
+    "#### 👥 Compiled by **Christian Henriot** "
+    "(Aix-Marseille University) and **Jiang Jin 姜进** "
+    "(East China Normal University 华东师范大学)"
 )
 
 kpi = q(
