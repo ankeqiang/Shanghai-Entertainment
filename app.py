@@ -31,12 +31,23 @@ st.set_page_config(
 )
 
 # Zoomable/pannable network renderer: viz.js draws the DOT graph client-side
-# and svg-pan-zoom adds mouse-wheel zoom, drag-to-pan, and +/- controls.
+# to an SVG, and a small custom handler provides mouse-wheel zoom (by resizing
+# the SVG, which has a viewBox), drag-to-pan via scroll, and +/-/Reset buttons.
 # Rendered in the browser, so no server-side Graphviz dependency is needed.
 _NETWORK_HTML = """
-<div id="wrap" style="width:100%;height:660px;border:1px solid #e0e0e0;
+<div style="position:relative;width:100%;height:660px;border:1px solid #e0e0e0;
      border-radius:6px;overflow:hidden;background:#ffffff;">
-  <div id="graph" style="width:100%;height:100%;"></div>
+  <div id="wrap" style="width:100%;height:100%;overflow:auto;cursor:grab;">
+    <div id="inner" style="display:inline-block;"></div>
+  </div>
+  <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">
+    <button id="zin"  title="Zoom in"
+      style="width:34px;height:34px;font-size:18px;cursor:pointer;">+</button>
+    <button id="zout" title="Zoom out"
+      style="width:34px;height:34px;font-size:18px;cursor:pointer;">−</button>
+    <button id="zreset" title="Reset"
+      style="height:34px;padding:0 10px;cursor:pointer;">Reset</button>
+  </div>
 </div>
 <script>
 (function () {
@@ -50,30 +61,55 @@ _NETWORK_HTML = """
     });
   }
   var CDN = "https://cdnjs.cloudflare.com/ajax/libs/";
-  var PANZOOM =
-    "https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js";
   var dot = __DOT__;
   load(CDN + "viz.js/2.1.2/viz.js")
     .then(function () { return load(CDN + "viz.js/2.1.2/full.render.js"); })
-    .then(function () { return load(PANZOOM); })
     .then(function () { return new Viz().renderSVGElement(dot); })
     .then(function (svg) {
-      svg.setAttribute("width", "100%");
-      svg.setAttribute("height", "100%");
+      var wrap = document.getElementById("wrap");
+      var inner = document.getElementById("inner");
       svg.style.display = "block";
-      document.getElementById("graph").appendChild(svg);
-      var pz = svgPanZoom(svg, {
-        zoomEnabled: true, controlIconsEnabled: true, dblClickZoomEnabled: true,
-        fit: true, center: true, contain: true, minZoom: 0.05, maxZoom: 40
+      inner.appendChild(svg);
+      var r = svg.getBoundingClientRect();
+      var natW = r.width || 800, natH = r.height || 600;
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+      var fit = Math.min(wrap.clientWidth / natW, wrap.clientHeight / natH, 1);
+      var scale = fit > 0 ? fit : 1;
+      function apply() {
+        svg.style.width = (natW * scale) + "px";
+        svg.style.height = (natH * scale) + "px";
+      }
+      apply();
+      wrap.addEventListener("wheel", function (e) {
+        e.preventDefault();
+        scale *= (e.deltaY < 0 ? 1.15 : 0.87);
+        scale = Math.max(0.05, Math.min(12, scale));
+        apply();
+      }, { passive: false });
+      var down = false, sx, sy, sl, stp;
+      wrap.addEventListener("mousedown", function (e) {
+        down = true; sx = e.clientX; sy = e.clientY;
+        sl = wrap.scrollLeft; stp = wrap.scrollTop;
+        wrap.style.cursor = "grabbing"; e.preventDefault();
       });
-      // Re-fit once the iframe has settled its final size, then on resize.
-      function refit() { pz.resize(); pz.fit(); pz.center(); }
-      setTimeout(refit, 150);
-      setTimeout(refit, 500);
-      window.addEventListener("resize", refit);
+      window.addEventListener("mousemove", function (e) {
+        if (!down) return;
+        wrap.scrollLeft = sl - (e.clientX - sx);
+        wrap.scrollTop = stp - (e.clientY - sy);
+      });
+      window.addEventListener("mouseup", function () {
+        down = false; wrap.style.cursor = "grab";
+      });
+      document.getElementById("zin").onclick =
+        function () { scale = Math.min(12, scale * 1.2); apply(); };
+      document.getElementById("zout").onclick =
+        function () { scale = Math.max(0.05, scale / 1.2); apply(); };
+      document.getElementById("zreset").onclick =
+        function () { scale = fit > 0 ? fit : 1; apply(); wrap.scrollTo(0, 0); };
     })
     .catch(function (err) {
-      document.getElementById("graph").innerHTML =
+      document.getElementById("wrap").innerHTML =
         "<p style='color:#b00020;font-family:sans-serif;padding:1em'>" +
         "Graph render error: " + err + "</p>";
     });
