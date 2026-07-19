@@ -12,12 +12,14 @@ Run locally:
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import streamlit.components.v1 as components
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "data", "shanghai_entertainment.db")
@@ -27,6 +29,36 @@ st.set_page_config(
     page_icon="🎭",
     layout="wide",
 )
+
+# Zoomable/pannable network renderer: viz.js draws the DOT graph client-side
+# and svg-pan-zoom adds mouse-wheel zoom, drag-to-pan, and +/- controls.
+# Rendered in the browser, so no server-side Graphviz dependency is needed.
+_NETWORK_HTML = """
+<div id="wrap" style="width:100%;height:660px;border:1px solid #e0e0e0;
+     border-radius:6px;overflow:hidden;background:#ffffff;">
+  <div id="graph" style="width:100%;height:100%;"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/viz.js/2.1.2/viz.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/viz.js/2.1.2/full.render.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
+<script>
+  var dot = __DOT__;
+  var viz = new Viz();
+  viz.renderSVGElement(dot).then(function (svg) {
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
+    document.getElementById("graph").appendChild(svg);
+    svgPanZoom(svg, {
+      zoomEnabled: true, controlIconsEnabled: true,
+      fit: true, center: true, minZoom: 0.15, maxZoom: 40
+    });
+  }).catch(function (err) {
+    document.getElementById("graph").innerHTML =
+      "<p style='color:#b00020;font-family:sans-serif;padding:1em'>" +
+      "Graph render error: " + err + "</p>";
+  });
+</script>
+"""
 
 # --------------------------------------------------------------------------
 # Data access
@@ -816,7 +848,9 @@ with tab_network:
             dot = [
                 "graph G {",
                 '  layout=neato; overlap=false; splines=true;',
-                '  bgcolor="transparent"; node [fontname="Helvetica"];',
+                '  bgcolor="transparent";',
+                '  node [fontname="Helvetica", fontsize=18];',
+                '  edge [color="#9e9e9e"];',
             ]
             for p in linked_perf:
                 dot.append(
@@ -835,8 +869,11 @@ with tab_network:
                     f' [penwidth={w:.2f}, color="#9e9e9e"];'
                 )
             dot.append("}")
-            st.graphviz_chart("\n".join(dot))
+
+            html = _NETWORK_HTML.replace("__DOT__", json.dumps("\n".join(dot)))
+            components.html(html, height=680)
             st.caption(
                 f"Showing {len(linked_perf)} performers, {len(venues)} venues, "
-                f"and {len(links)} links (blue = performer, green = venue)."
+                f"and {len(links)} links (blue = performer, green = venue). "
+                "Scroll to zoom, drag to pan, or use the on-graph controls."
             )
