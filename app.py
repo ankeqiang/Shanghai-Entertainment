@@ -197,8 +197,9 @@ c2.metric("Shows", f"{int(kpi['shows'][0]):,}")
 c3.metric("Distinct venues", f"{int(kpi['venues'][0]):,}")
 c4.metric("Named performers", f"{int(perf_count['performers'][0]):,}")
 
-tab_about, tab_time, tab_genre, tab_venue, tab_perf, tab_browse = st.tabs(
-    ["📖 About", "📈 Over time", "🎬 Genres", "🏛 Venues",
+(tab_about, tab_guide, tab_time, tab_genre, tab_venue, tab_perf,
+ tab_browse) = st.tabs(
+    ["📖 About", "🧭 How to use", "📈 Over time", "🎬 Genres", "🏛 Venues",
      "⭐ Performers", "🔎 Browse"]
 )
 
@@ -373,6 +374,98 @@ fascinating aspects that these records make it possible to explore. That cannot
 be presented in this introduction, but the
 [Virtual Shanghai](https://www.virtualshanghai.net) platform provides a whole
 collection of maps on the distribution of performing sites across the city.
+        """
+    )
+
+# --------------------------------------------------------------------------
+# How to use
+# --------------------------------------------------------------------------
+
+with tab_guide:
+    st.markdown(
+        """
+## Using this database
+
+This online version offers a focused search and browsing interface. An
+advanced search function is planned. The original FileMaker database supports a
+wider range of queries; **for in-depth research, please contact us at
+enpmuc[at]gmail.com**.
+
+### The interface at a glance
+
+- **Left sidebar — Filters.** Four filters narrow the data: **Year range**,
+  **Genre**, **Venue**, and **Performer name**. They combine together (all
+  conditions apply at once) and affect every tab except this guide and *About*.
+  Leave a filter empty to place no restriction on it.
+- **Summary counts.** The four figures below the title — performed items,
+  shows, distinct venues, and named performers — update live as you change the
+  filters.
+- **Tabs.** *Over time*, *Genres*, and *Venues* give aggregate views;
+  *Performers* and *Browse* let you search individual records.
+
+### Searching
+
+- To search by **title**, open the **🔎 Browse** tab and type into
+  "Title contains" (for example, 杨乃武). Combine it with the sidebar filters to
+  refine the results.
+- To search by **performer**, either type a name into the sidebar
+  "Performer name" field (which filters the whole dashboard) or use the exact
+  search box in the **⭐ Performers** tab, which also charts that performer's
+  appearances year by year.
+- Any result table can be exported: use **⬇ Download these results (CSV)** in
+  the Browse tab.
+
+### Key concepts
+
+- **Performed item (entry).** Each entry in the database represents a unique
+  performance — one film, one opera, one act, and so on.
+- **Show.** A show may be a single performance (one film, a whole opera) or a
+  set of performances. It was common, for instance, to bill several parts of
+  different operas together. Shows were split into individual performed items,
+  but the interface can reconstitute the full set.
+
+### Reconstituting a show (the FileMaker "Show" button)
+
+In both the **Browse** and **Performers** tabs, **click any row** in a results
+table. A panel opens below showing the complete show that item belonged to —
+the venue, date, and ticket price, followed by every performed item on that
+bill with its genre, day/evening slot, advertising label, and performers. This
+reproduces the "Show" button of the original database. Selecting a different
+row switches to that item's show; the results table above is the equivalent of
+the "Unique" (single-item) view.
+
+### The fields in this version
+
+**Show (performance-site) information**
+
+- **Identifier of the show** — unique ID grouping items performed together.
+- **Date of the show** — the exact date recorded in the source.
+- **Name of the facility (venue)** — the performing site as given in the source
+  (theater, teahouse, amusement hall, etc.).
+- **Ticket price** — as advertised.
+- **Source** — the newspaper, date, and page of the advertisement.
+
+**Performed-item information**
+
+- **Identifier of the performed item** — unique ID of the individual item.
+- **Title** — the film, opera, or piece performed.
+- **Genre** — as indicated in the source (电影 film, 京剧 Peking opera, etc.).
+- **Showtime** — daytime or evening show.
+- **Advertising label** — extra promotional text from the source
+  (e.g. 进口片, a troupe name), variable in nature.
+- **Source** — as above.
+
+**Performer information**
+
+- **Name of the performer** — recorded mainly for opera and drama actors listed
+  by name in the advertisement.
+- Each performer is linked to the performed item they appeared in.
+
+> The full FileMaker database holds further fields not included in this online
+> version — facility address, city, class, status, and controlling authority;
+> performance initial and final dates; remarks; performer function and
+> performer advertising text; and geocoding data. These are available on
+> request at enpmuc[at]gmail.com.
         """
     )
 
