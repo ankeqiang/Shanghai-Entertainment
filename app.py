@@ -209,9 +209,9 @@ c3.metric("Distinct venues", f"{int(kpi['venues'][0]):,}")
 c4.metric("Named performers", f"{int(perf_count['performers'][0]):,}")
 
 (tab_about, tab_guide, tab_time, tab_genre, tab_venue, tab_perf,
- tab_browse) = st.tabs(
+ tab_browse, tab_network) = st.tabs(
     ["📖 About", "🧭 How to use", "📈 Over time", "🎬 Genres", "🏛 Venues",
-     "⭐ Performers", "🔎 Browse"]
+     "⭐ Performers", "🔎 Browse", "🕸 Network"]
 )
 
 # --------------------------------------------------------------------------
@@ -747,3 +747,96 @@ with tab_browse:
             f"performed item(s):"
         )
         st.dataframe(bill, width="stretch", hide_index=True)
+
+# --------------------------------------------------------------------------
+# Network (performer ↔ venue co-occurrence)
+# --------------------------------------------------------------------------
+
+with tab_network:
+    st.subheader("Performer ↔ venue network")
+    st.caption(
+        "Each edge links a performer to a venue where they appeared; edge "
+        "thickness reflects how often. Performers who shared venues cluster "
+        "together, revealing resident troupes and the profile of each hall. "
+        "The sidebar filters (including Performer name) apply here too."
+    )
+    ncol1, ncol2 = st.columns(2)
+    n_perf = ncol1.slider("Performers to include (most billed)", 5, 40, 15)
+    min_link = ncol2.slider("Min. appearances per performer–venue link",
+                            1, 20, 4)
+
+    # Top performers within the current filters.
+    top_perf = q(
+        f"""
+        SELECT pf.performer_name AS performer, COUNT(*) AS n
+        FROM performers pf
+        JOIN performed_items pi ON pf.item_id = pi.item_id
+        JOIN shows s ON pi.show_id = s.show_id
+        WHERE {WHERE} AND pf.performer_name <> ''
+        GROUP BY pf.performer_name ORDER BY n DESC LIMIT ?
+        """,
+        PARAMS + (n_perf,),
+    )
+
+    if top_perf.empty:
+        st.info("No performer data for the current filters.")
+    else:
+        names = top_perf["performer"].tolist()
+        totals = dict(zip(top_perf["performer"], top_perf["n"]))
+        placeholders = ",".join("?" * len(names))
+        links = q(
+            f"""
+            SELECT pf.performer_name AS performer, s.venue AS venue,
+                   COUNT(*) AS n
+            FROM performers pf
+            JOIN performed_items pi ON pf.item_id = pi.item_id
+            JOIN shows s ON pi.show_id = s.show_id
+            WHERE {WHERE} AND pf.performer_name IN ({placeholders})
+                  AND s.venue <> ''
+            GROUP BY pf.performer_name, s.venue
+            HAVING COUNT(*) >= ?
+            ORDER BY n DESC
+            LIMIT 200
+            """,
+            PARAMS + tuple(names) + (min_link,),
+        )
+
+        if links.empty:
+            st.info(
+                "No performer–venue links meet the threshold. "
+                "Try lowering the minimum, or widening the filters."
+            )
+        else:
+            def esc(s):
+                return str(s).replace('"', "'")
+
+            venues = sorted(set(links["venue"]))
+            linked_perf = sorted(set(links["performer"]))
+            max_n = int(links["n"].max())
+            dot = [
+                "graph G {",
+                '  layout=neato; overlap=false; splines=true;',
+                '  bgcolor="transparent"; node [fontname="Helvetica"];',
+            ]
+            for p in linked_perf:
+                dot.append(
+                    f'  "P::{esc(p)}" [label="{esc(p)}\\n({totals.get(p, 0)})",'
+                    ' shape=box, style="filled,rounded", fillcolor="#cfe8ff"];'
+                )
+            for v in venues:
+                dot.append(
+                    f'  "V::{esc(v)}" [label="{esc(v)}", shape=ellipse,'
+                    ' style=filled, fillcolor="#c8e6c9"];'
+                )
+            for _, r in links.iterrows():
+                w = 1 + 4 * r["n"] / max_n
+                dot.append(
+                    f'  "P::{esc(r["performer"])}" -- "V::{esc(r["venue"])}"'
+                    f' [penwidth={w:.2f}, color="#9e9e9e"];'
+                )
+            dot.append("}")
+            st.graphviz_chart("\n".join(dot))
+            st.caption(
+                f"Showing {len(linked_perf)} performers, {len(venues)} venues, "
+                f"and {len(links)} links (blue = performer, green = venue)."
+            )
