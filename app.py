@@ -38,25 +38,40 @@ _NETWORK_HTML = """
      border-radius:6px;overflow:hidden;background:#ffffff;">
   <div id="graph" style="width:100%;height:100%;"></div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/viz.js/2.1.2/viz.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/viz.js/2.1.2/full.render.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
 <script>
-  var dot = __DOT__;
-  var viz = new Viz();
-  viz.renderSVGElement(dot).then(function (svg) {
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "100%");
-    document.getElementById("graph").appendChild(svg);
-    svgPanZoom(svg, {
-      zoomEnabled: true, controlIconsEnabled: true,
-      fit: true, center: true, minZoom: 0.15, maxZoom: 40
+(function () {
+  function load(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = function () { res(); };
+      s.onerror = function () { rej(new Error("failed to load " + src)); };
+      document.head.appendChild(s);
     });
-  }).catch(function (err) {
-    document.getElementById("graph").innerHTML =
-      "<p style='color:#b00020;font-family:sans-serif;padding:1em'>" +
-      "Graph render error: " + err + "</p>";
-  });
+  }
+  var CDN = "https://cdnjs.cloudflare.com/ajax/libs/";
+  var dot = __DOT__;
+  load(CDN + "viz.js/2.1.2/viz.js")
+    .then(function () { return load(CDN + "viz.js/2.1.2/full.render.js"); })
+    .then(function () {
+      return load(CDN + "svg-pan-zoom/3.6.1/svg-pan-zoom.min.js");
+    })
+    .then(function () { return new Viz().renderSVGElement(dot); })
+    .then(function (svg) {
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "100%");
+      document.getElementById("graph").appendChild(svg);
+      svgPanZoom(svg, {
+        zoomEnabled: true, controlIconsEnabled: true,
+        fit: true, center: true, minZoom: 0.15, maxZoom: 40
+      });
+    })
+    .catch(function (err) {
+      document.getElementById("graph").innerHTML =
+        "<p style='color:#b00020;font-family:sans-serif;padding:1em'>" +
+        "Graph render error: " + err + "</p>";
+    });
+})();
 </script>
 """
 
