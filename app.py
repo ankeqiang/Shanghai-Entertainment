@@ -60,11 +60,17 @@ _NETWORK_HTML = """
     .then(function (svg) {
       svg.setAttribute("width", "100%");
       svg.setAttribute("height", "100%");
+      svg.style.display = "block";
       document.getElementById("graph").appendChild(svg);
-      svgPanZoom(svg, {
-        zoomEnabled: true, controlIconsEnabled: true,
-        fit: true, center: true, minZoom: 0.15, maxZoom: 40
+      var pz = svgPanZoom(svg, {
+        zoomEnabled: true, controlIconsEnabled: true, dblClickZoomEnabled: true,
+        fit: true, center: true, contain: true, minZoom: 0.05, maxZoom: 40
       });
+      // Re-fit once the iframe has settled its final size, then on resize.
+      function refit() { pz.resize(); pz.fit(); pz.center(); }
+      setTimeout(refit, 150);
+      setTimeout(refit, 500);
+      window.addEventListener("resize", refit);
     })
     .catch(function (err) {
       document.getElementById("graph").innerHTML =
