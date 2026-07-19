@@ -534,6 +534,19 @@ reproduces the "Show" button of the original database. Selecting a different
 row switches to that item's show; the results table above is the equivalent of
 the "Unique" (single-item) view.
 
+### Exploring the network graph
+
+The **🕸 Network** tab draws a *performer–venue network*: blue nodes are
+performers, green nodes are venues, and an edge links a performer to a venue
+where they appeared — the thicker the edge, the more often. Performers who
+shared the same halls are pulled close together, so resident troupes and the
+programming profile of each venue become visible at a glance. Two sliders
+control the view: **Performers to include** (the most-billed performers) and
+**Min. appearances per performer–venue link** (raise it to thin the graph,
+lower it to include occasional links). The sidebar filters apply here too, so
+you can restrict the network to a period, a genre, or a single performer.
+Scroll to zoom, drag to pan, or use the on-graph +/−/Reset buttons.
+
 ### The fields in this version
 
 **Show (performance-site) information**
@@ -561,11 +574,15 @@ the "Unique" (single-item) view.
   by name in the advertisement.
 - Each performer is linked to the performed item they appeared in.
 
-> The full FileMaker database holds further fields not included in this online
-> version — facility address, city, class, status, and controlling authority;
-> performance initial and final dates; remarks; performer function and
-> performer advertising text; and geocoding data. These are available on
-> request at enpmuc[at]gmail.com.
+### Source code and additional data
+
+The full source code and data for this database are on GitHub:
+**https://github.com/ankeqiang/Shanghai-Entertainment**. Materials beyond this
+online version — including facility addresses, geocoding data, and a GIS pivot
+of the full dataset — are provided in the repository's
+[**`data_extra`**](https://github.com/ankeqiang/Shanghai-Entertainment/tree/main/data_extra)
+folder. For in-depth research or access to the full FileMaker database, please
+contact us at enpmuc[at]gmail.com.
         """
     )
 
