@@ -143,6 +143,16 @@ sel_genres = st.sidebar.multiselect("Genre", genre_options())
 sel_venues = st.sidebar.multiselect("Venue (top 400)", venue_options())
 sel_performer = st.sidebar.text_input("Performer name", placeholder="e.g. 麒麟童")
 
+_cover = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      "Leisure_Book_Cover.jpg")
+if os.path.exists(_cover):
+    st.sidebar.image(
+        _cover,
+        caption="Jiang Jin (ed.), 二十世纪上海报刊娱乐版广告资料长编 "
+                "(Shanghai Culture Publishing House, 2015)",
+        width="stretch",
+    )
+
 WHERE, PARAMS = where_clause(years, sel_genres, sel_venues, sel_performer)
 
 # --------------------------------------------------------------------------
@@ -153,6 +163,10 @@ st.title("Shanghai Entertainment, 1907–1966")
 st.caption(
     "Theater, opera, and cinema programs transcribed from "
     "newspaper advertisements."
+)
+st.caption(
+    "Compiled by Christian Henriot (Aix-Marseille University) and "
+    "Jiang Jin 姜进 (East China Normal University 华东师范大学)."
 )
 
 kpi = q(
@@ -201,8 +215,8 @@ with tab_about:
 
 The 二十世纪上海报刊娱乐版广告资料 (1907–1966) database (hereafter **SHBKYL**)
 is the online version of the four-volume compendium edited by Jiang Jin (姜进)
-and published as *二十世纪上海报刊娱乐版广告资料长编: 1907–1966* (*Ershi shiji
-Shanghai baokan yuleban guanggao ziliao changbian*, "Compendium of advertising
+and published as 二十世纪上海报刊娱乐版广告资料长编: 1907–1966 (Ershi shiji
+Shanghai baokan yuleban guanggao ziliao changbian, "Compendium of advertising
 materials for entertainment in twentieth-century Shanghai newspapers") by the
 Shanghai Culture Publishing House (上海文化出版社) in 2015.
 
