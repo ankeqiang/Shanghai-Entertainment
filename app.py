@@ -50,12 +50,12 @@ _NETWORK_HTML = """
     });
   }
   var CDN = "https://cdnjs.cloudflare.com/ajax/libs/";
+  var PANZOOM =
+    "https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js";
   var dot = __DOT__;
   load(CDN + "viz.js/2.1.2/viz.js")
     .then(function () { return load(CDN + "viz.js/2.1.2/full.render.js"); })
-    .then(function () {
-      return load(CDN + "svg-pan-zoom/3.6.1/svg-pan-zoom.min.js");
-    })
+    .then(function () { return load(PANZOOM); })
     .then(function () { return new Viz().renderSVGElement(dot); })
     .then(function (svg) {
       svg.setAttribute("width", "100%");
