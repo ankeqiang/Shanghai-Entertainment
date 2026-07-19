@@ -153,6 +153,17 @@ if os.path.exists(_cover):
         width="stretch",
     )
 
+st.sidebar.markdown("**How to cite**")
+st.sidebar.caption(
+    "Henriot, Christian, and Jiang Jin (姜进). *Shanghai Entertainment: "
+    "Theater, Opera, and Cinema Programs in Shanghai, 1907–1966*. Based on "
+    "Jiang Jin, ed., *二十世纪上海报刊娱乐版广告资料长编* "
+    "(*Ershi shiji Shanghai baokan yuleban guanggao ziliao changbian*), "
+    "4 vols. Shanghai: Shanghai Culture Publishing House, 2015. "
+    "Accessed July 19, 2026. "
+    "https://ankeqiang-shanghai-entertainment-app-dxw8ar.streamlit.app/."
+)
+
 WHERE, PARAMS = where_clause(years, sel_genres, sel_venues, sel_performer)
 
 # --------------------------------------------------------------------------
