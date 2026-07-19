@@ -1,8 +1,8 @@
 """
 Shanghai Entertainment Dashboard
 ================================
-An interactive explorer for the Leisure_ALL historical database of Shanghai
-theatre, opera and cinema programmes (1907-1966), reconstructed from a
+An interactive explorer for the SHBKYL historical database of Shanghai
+theater, opera, and cinema programs (1907-1966), reconstructed from a
 FileMaker export into three linked tables: shows, performed_items, performers.
 
 Run locally:
@@ -56,6 +56,8 @@ def q(sql: str, params: tuple = ()) -> pd.DataFrame:
 @st.cache_data
 def bounds() -> tuple[int, int]:
     df = q("SELECT MIN(year) lo, MAX(year) hi FROM shows WHERE year IS NOT NULL")
+    # Cap the upper bound at 1966: the database ends in 1966, and a couple of
+    # stray records with later years should not stretch the slider.
     return int(df.lo[0]), min(int(df.hi[0]), 1966)
 
 
@@ -77,7 +79,7 @@ def venue_options() -> list[str]:
     return df.venue.tolist()
 
 
-def where_clause(years, genres, venues):
+def where_clause(years, genres, venues, performer):
     """Build a SQL WHERE fragment + params for the item-level joined view."""
     conds, params = ["s.year BETWEEN ? AND ?"], [years[0], years[1]]
     if genres:
@@ -86,6 +88,12 @@ def where_clause(years, genres, venues):
     if venues:
         conds.append("s.venue IN (%s)" % ",".join("?" * len(venues)))
         params += venues
+    if performer:
+        conds.append(
+            "pi.item_id IN (SELECT item_id FROM performers "
+            "WHERE performer_name LIKE ?)"
+        )
+        params.append(f"%{performer}%")
     return " AND ".join(conds), tuple(params)
 
 
@@ -98,13 +106,9 @@ st.sidebar.title("🎭 Filters")
 years = st.sidebar.slider("Year range", lo, hi, (lo, hi))
 sel_genres = st.sidebar.multiselect("Genre", genre_options())
 sel_venues = st.sidebar.multiselect("Venue (top 400)", venue_options())
-st.sidebar.caption(
-    "Data: Leisure_ALL historical database of Shanghai entertainment "
-    "programmes. Dates and prices are transcribed from period newspapers "
-    "(申报, 新闻报, …)."
-)
+sel_performer = st.sidebar.text_input("Performer name", placeholder="e.g. 麒麟童")
 
-WHERE, PARAMS = where_clause(years, sel_genres, sel_venues)
+WHERE, PARAMS = where_clause(years, sel_genres, sel_venues, sel_performer)
 
 # --------------------------------------------------------------------------
 # Header + KPIs
@@ -112,12 +116,13 @@ WHERE, PARAMS = where_clause(years, sel_genres, sel_venues)
 
 st.title("Shanghai Entertainment, 1907–1966")
 st.caption(
-    "Theatre, opera, and cinema programmes transcribed from period newspapers."
+    "Theater, opera, and cinema programs transcribed from "
+    "newspaper advertisements."
 )
 
 kpi = q(
     f"""
-    SELECT COUNT(DISTINCT pi.item_id)  AS items,
+    SELECT COUNT(*)                    AS items,
            COUNT(DISTINCT s.show_id)   AS shows,
            COUNT(DISTINCT s.venue)     AS venues
     FROM performed_items pi
@@ -143,9 +148,184 @@ c2.metric("Shows", f"{int(kpi['shows'][0]):,}")
 c3.metric("Distinct venues", f"{int(kpi['venues'][0]):,}")
 c4.metric("Named performers", f"{int(perf_count['performers'][0]):,}")
 
-tab_time, tab_genre, tab_venue, tab_perf, tab_browse = st.tabs(
-    ["📈 Over time", "🎬 Genres", "🏛 Venues", "⭐ Performers", "🔎 Browse"]
+tab_about, tab_time, tab_genre, tab_venue, tab_perf, tab_browse = st.tabs(
+    ["📖 About", "📈 Over time", "🎬 Genres", "🏛 Venues",
+     "⭐ Performers", "🔎 Browse"]
 )
+
+# --------------------------------------------------------------------------
+# About
+# --------------------------------------------------------------------------
+
+with tab_about:
+    st.markdown(
+        """
+## The 二十世纪上海报刊娱乐版广告资料 database (1907–1966)
+
+### Origin and credit
+
+The 二十世纪上海报刊娱乐版广告资料 (1907–1966) database (hereafter **SHBKYL**)
+is the online version of the four-volume compendium edited by Jiang Jin (姜进)
+and published as *二十世纪上海报刊娱乐版广告资料长编: 1907–1966* (*Ershi shiji
+Shanghai baokan yuleban guanggao ziliao changbian*, "Compendium of advertising
+materials for entertainment in twentieth-century Shanghai newspapers") by the
+Shanghai Culture Publishing House (上海文化出版社) in 2015.
+
+Commercial entertainment — opera, cinema, dancing, and more — was a major facet
+of urban life. In the late imperial and republican eras, Shanghai played a
+central role in the rise of modern forms of entertainment and their diffusion
+across the country. The city was the cradle of Chinese cinema, spoken drama,
+and symphonic music. Entertainment facilities multiplied and relentlessly
+rejuvenated leisure through a bewildering range of genres. This database
+documents the evolution of entertainment in Shanghai through advertisements in
+four major newspapers over six decades. It is built on a unique dataset that
+traces tens of thousands of shows and performances, day and night, throughout
+the city and its entertainment facilities. This approach supports a move toward
+a new form of data-rich cultural history.
+
+SHBKYL is a unique and invaluable resource for the study of leisure and
+entertainment in Shanghai between 1907 and 1966. The data was collected from
+four major newspapers: *Shenbao* (申報, 1907–1949), *Xinwenbao* (新聞報,
+1907–1949), *Xinwen ribao* (新聞日報, 1949–1959), and *Jiefang ribao* (解放日報,
+1960–1966). Jiang Jin directed the collection, compilation, and curation of the
+data that eventually became four print volumes.
+
+The database is currently entirely in Chinese. There is a plan to add pinyin for
+the names of performing sites and actors and for the titles of performed items,
+but this will not happen in the short term.
+
+### Method and challenges
+
+The challenge was how to handle the sheer volume of entertainment advertisements
+in Shanghai newspapers. Collection was therefore based on sampling. For each
+newspaper, the team took the first day of every month, plus the issues for the
+New Year (中西), the Duanwu Festival (端午), the Mid-Autumn Festival (中秋),
+National Day (国庆节, for the *Shenbao* only), and other commemorative days. Even
+so, the volume of information remained considerable, and it was impossible to
+record everything in the advertisements. The team chose to focus on the major
+fields: location, program, ticket price, date, facility, genre (as indicated in
+the source), actors, advertising label, and page.
+
+One of the main difficulties was the lack of access to the original newspapers.
+Microfilm was used for the *Xinwenbao* (新闻报), and for the *Shenbao* (申报) the
+source was the reduced-format reprint collection published in the 1980s. Blurry
+text and missing pages were recurring problems (notably for the *Jiefang ribao*
+解放日报 and *Xinwen ribao* 新闻日报). Some advertising texts were themselves
+unclear, at least to a present-day historian-reader, and the advertisements
+sometimes contained erroneous characters. A further recurring problem was the
+use of short names for entertainment facilities, which created ambiguities when
+two different facilities shared the same short name (for example, 新华 for
+新华电影院).
+
+The database also has biases. The visual dimension of the advertisements is
+entirely lost — especially differences in the size and placement of
+advertisements in the newspapers. This is the price of a fully searchable
+database; no attempt was made to collect the original images, given the
+impossibility of doing so with the sources used. Another bias is that the
+database includes only entertainment activities for which the performing sites
+published advertisements. Although advertising clearly improved the chances of
+attracting spectators, the database probably misses activities that took place
+but were not advertised, or that were advertised on dates other than the sampled
+days.
+
+The number of advertisements published depended on several factors: the number
+of facilities, the growth of entertainment practices, marketing decisions, and
+so on. The table below shows the distribution of advertisements by decade
+between 1907 and 1966.
+        """
+    )
+
+    _decades = pd.DataFrame(
+        {
+            "Period": ["1907–1909", "1910–1919", "1920–1929", "1930–1939",
+                       "1940–1949", "1950–1959", "1960–1966"],
+            "Advertisements": [611, 11664, 29922, 41739, 17042, 24070, 10325],
+        }
+    )
+    _decades["Advertisements"] = _decades["Advertisements"].map("{:,}".format)
+    st.table(_decades.set_index("Period"))
+
+    st.markdown(
+        """
+### From print to database
+
+When the project was first designed, it was conceived as a book, not a database.
+The information was collected in MS Word files in the form of tables, but none of
+these tables could be automatically transposed or exported to tabular data. In
+2014, during the final editing phase of the published volumes, Jiang Jin and
+Christian Henriot began discussing the creation of a database. Christian Henriot
+proposed building it in FileMaker and brought in Jean-Pierre Dedieu, a
+programming historian (of early modern Spain) with deep knowledge of FileMaker.
+The transformation proceeded in two stages. First, students copied the basic
+blocks of information from the Word files into a simple database template, to
+minimize the risk of errors; this stage allowed the data to be processed
+internally through automatic routines that split separable fields and helped
+design the final data-entry template. In the second stage, students copied and
+pasted the remaining, unsplit data from the Word files into the final template.
+
+SHBKYL inevitably contains mistakes and typos. Some data remains undistributed,
+and there are occasional font-size issues. We welcome suggestions for
+corrections at **enpmuc[at]gmail.com**.
+
+### What's in it?
+
+As a result of the transformation, SHBKYL grew into a database of **139,655
+performed items** and **80,554 shows**. Each entry represents a unique performed
+item, which may be part of a show. The shows took place at 818 different
+performing sites, almost all of which have been located in the city (756
+facilities); only 978 performances took place in unknown or undetermined
+locations.
+
+The role and importance of entertainment facilities varied greatly. The Great
+World (大世界) was a powerful entertainment engine: with 14,991 shows, it
+accounted for almost 10 percent of all shows in the whole period. The table below
+lists the 18 facilities that offered more than 1,000 shows across the period.
+There was clearly a hierarchy of entertainment facilities in Shanghai.
+        """
+    )
+
+    _facilities = pd.DataFrame(
+        {
+            "Facility": ["大世界", "先施乐园", "天蟾舞台", "小世界", "新世界",
+                         "新新屋顶花园", "福安游艺场", "永安天韵楼", "共舞台",
+                         "大舞台", "黄金大戏院", "神仙世界", "大新游乐场",
+                         "东方书场", "丹桂第一台", "新舞台", "上海大戏院",
+                         "国泰大戏院"],
+            "Shows": [14991, 4845, 4810, 4104, 4031, 3165, 2835, 2548, 2528,
+                      2351, 2190, 2096, 2049, 1919, 1604, 1476, 1068, 1067],
+        }
+    )
+    _facilities["Shows"] = _facilities["Shows"].map("{:,}".format)
+    st.table(_facilities.set_index("Facility"))
+
+    st.markdown(
+        """
+Shows took place mostly in the evening, but this varied greatly by genre.
+Beijing opera was played almost equally in the daytime (53%) and the evening
+(47%), but for cinema, women's Beijing opera, Shanghai opera (沪剧), and circus
+(杂技), most shows — about 80% on average — took place during the daytime. These
+are of course averages for the entire period, and actual practices must have
+evolved over time.
+
+SHBKYL records **13,700 unique actors**, very unevenly distributed by number of
+mentions. For instance, 8,376 actors are mentioned only once and 2,265 only
+twice. A more limited group of 1,125 actors are mentioned more than five times,
+and a narrow group of 255 more than twenty times. Within the latter, the true
+celebrities number only 40 individuals with more than fifty mentions.
+
+The sources record a bewildering **589 genres**, although some items are really a
+specific attraction rather than a genre as such (for example, 飞车, "flying car,"
+or a type of sport). Many terms could be grouped together to refine and reduce
+the number of genres and produce more meaningful statistics, but SHBKYL records
+genres as they appeared in the source.
+
+The spatial dimension of entertainment and its evolution is one of the most
+fascinating aspects that these records make it possible to explore. That cannot
+be presented in this introduction, but the
+[Virtual Shanghai](https://www.virtualshanghai.net) platform provides a whole
+collection of maps on the distribution of performing sites across the city.
+        """
+    )
 
 # --------------------------------------------------------------------------
 # Over time
@@ -169,8 +349,9 @@ with tab_time:
             df, x="year", y="items",
             labels={"year": "Year", "items": "Performed items"},
             title="Performed items per year",
+            color_discrete_sequence=["#a5d6a7"],  # light green fill
         )
-        fig.update_traces(line_color="#c0392b")
+        fig.update_traces(line_color="#66bb6a")
         st.plotly_chart(fig, width="stretch")
         st.caption(
             "Gaps and spikes reflect newspaper coverage and archival "
@@ -244,7 +425,8 @@ with tab_venue:
     else:
         fig = px.bar(
             df.sort_values("items"), x="items", y="venue", orientation="h",
-            title="Busiest venues", labels={"items": "Performed items", "venue": ""},
+            title="Busiest venues",
+            labels={"items": "Performed items", "venue": ""},
             hover_data=["shows"],
         )
         fig.update_traces(marker_color="#16a085")
@@ -262,7 +444,8 @@ with tab_venue:
 
 with tab_perf:
     st.subheader("Search a performer")
-    name = st.text_input("Performer name (Chinese)", placeholder="e.g. 麒麟童")
+    name = st.text_input("Performer name (Chinese)", placeholder="e.g. 麒麟童",
+                         key="perf_tab_search")
     if name:
         appearances = q(
             """

@@ -98,7 +98,11 @@ def build():
             source        TEXT
         );
         CREATE TABLE performed_items (
-            item_id            TEXT PRIMARY KEY,
+            -- Surrogate primary key: the source item_id is NOT unique (986
+            -- distinct performed items share an id with another record), so
+            -- keying on it would silently drop those ~1,000 real records.
+            row_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id            TEXT,
             show_id            TEXT,
             title              TEXT,
             genre              TEXT,
@@ -161,7 +165,10 @@ def build():
             )
         )
     cur.executemany(
-        "INSERT OR IGNORE INTO performed_items VALUES (?,?,?,?,?,?,?)", items
+        "INSERT INTO performed_items "
+        "(item_id, show_id, title, genre, advertising_label, show_time, source) "
+        "VALUES (?,?,?,?,?,?,?)",
+        items,
     )
 
     # ---- performers (from Performers.csv) ----------------------------------
@@ -184,6 +191,7 @@ def build():
     # ---- indexes -----------------------------------------------------------
     cur.executescript(
         """
+        CREATE INDEX idx_items_item   ON performed_items(item_id);
         CREATE INDEX idx_items_show   ON performed_items(show_id);
         CREATE INDEX idx_items_genre  ON performed_items(genre);
         CREATE INDEX idx_perf_item    ON performers(item_id);
