@@ -35,6 +35,9 @@ csv.field_size_limit(min(sys.maxsize, 2**31 - 1))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+sys.path.insert(0, ROOT)
+from data_integrity import corrected_show_date
+
 RAW = os.path.join(ROOT, "data", "raw")
 # DB_PATH can be overridden with the SE_DB_PATH env var. This is useful when
 # the repo lives on a cloud-synced filesystem (Dropbox, iCloud, etc.), where
@@ -131,6 +134,7 @@ def build():
         if show_id in shows:
             continue
         iso, year = parse_date(r[0])
+        iso, year = corrected_show_date(show_id, iso, year, clean(r[17]))
         shows[show_id] = (
             show_id,
             iso,

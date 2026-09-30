@@ -3,6 +3,7 @@
 An interactive [Streamlit](https://streamlit.io) dashboard for exploring the
 **Leisure_ALL** historical database of Shanghai theatre, opera, and cinema
 programmes (**1907–1966**), reconstructed from a FileMaker export.
+The published corpus comprises **139,655 performed items**.
 
 The source data was transcribed from period newspapers (*申报 Shenbao*,
 *新闻报 Xinwenbao*, …) and covers tens of thousands of shows across the great
@@ -18,10 +19,12 @@ The dashboard lets you:
 - break activity down by **genre** (电影 film, 京剧 Peking opera, 越剧 Yue opera,
   话剧 spoken drama, 滑稽 comedy, …) and track genre trends over time;
 - rank and inspect the **busiest venues**;
-- **search a performer** (e.g. 麒麟童) to see every billed appearance and a
-  per-year timeline;
-- **browse and full-text search** performed items, filter by year/genre/venue,
-  and export the current selection to CSV.
+- **search a performer** (e.g. 麒麟童) to see unambiguously linked appearances
+  and a per-year timeline, within the current sidebar filters;
+- **browse and search titles** of performed items, filter by year/genre/venue,
+  and export the displayed selection (up to 2,000 rows) to CSV;
+- reconstruct a complete programme from an item and explore performer–venue
+  links. Shared venues do not by themselves establish troupe membership.
 
 ## Data model
 
@@ -31,11 +34,22 @@ The FileMaker export is reshaped into three linked tables in a SQLite database:
 shows ──show_id──< performed_items ──item_id──< performers
 ```
 
-| Table | Rows | Key columns |
-|-------|------|-------------|
-| `shows` | ~85,500 | `show_id`, `date_iso`, `year`, `venue`, `ticket_price`, `source` |
-| `performed_items` | ~138,700 | `item_id`, `show_id`, `title`, `genre`, `advertising_label`, `show_time`, `source` |
-| `performers` | ~81,300 | `item_id`, `performer_name`, `performer_id` |
+| Table | Contents | Key columns |
+|-------|----------|-------------|
+| `shows` | Programme groupings | `show_id`, `date_iso`, `year`, `venue`, `ticket_price`, `source` |
+| `performed_items` | Individual programme entries | `row_id`, `item_id`, `show_id`, `title`, `genre`, `advertising_label`, `show_time`, `source` |
+| `performers` | Performer links to entries | `item_id`, `performer_name`, `performer_id` |
+
+The published total of **139,655 performed items** is the figure used to describe
+the corpus. The current export contains 139,730 item records (75 more); these
+remain intact pending reconciliation with the source database. Dashboard counts
+and charts reflect actual matching records, not the published total.
+
+Some source `item_id` values are reused across different programmes. The app
+uses only performer links whose `item_id` identifies exactly one item record.
+Ambiguous and orphan links remain in the database but are omitted from performer
+results, programme casts, and networks. Restoring them requires the original
+FileMaker relationships or an authoritative mapping to individual item records.
 
 ## Quick start
 
@@ -68,7 +82,10 @@ The original CSVs are quirky FileMaker exports, handled by
 - there are **no header rows**; column order follows the FileMaker export
   layout and was mapped against the DDR (`Leisure_ALL_fmp12.xml`);
 - `Performers.csv` and `Performers_List.csv` are identical duplicates;
-- dates are stored as `YYYY=MM=DD` and normalized to ISO `YYYY-MM-DD`.
+- dates are stored as `YYYY=MM=DD` and normalized to ISO `YYYY-MM-DD`;
+- shows `00101007` and `00101008` are corrected from `1991-08-02` to
+  `1919-08-02`, matching their newspaper source references. The build applies
+  these specific corrections only when the original date and source match.
 
 Raw exports live under `data/raw/` and are **git-ignored** (large, and the DB
 is derived from them).

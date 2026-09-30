@@ -21,6 +21,8 @@ import plotly.express as px
 import streamlit as st
 import streamlit.components.v1 as components
 
+from data_integrity import PUBLISHED_ITEM_COUNT, create_performer_view
+
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "data", "shanghai_entertainment.db")
 
@@ -134,7 +136,9 @@ def get_conn() -> sqlite3.Connection:
     # creating journal/WAL/lock files, which lets it work on cloud-synced or
     # network filesystems (Dropbox, iCloud) that don't support SQLite locking.
     uri = f"file:{DB_PATH}?mode=ro&immutable=1"
-    return sqlite3.connect(uri, uri=True, check_same_thread=False)
+    connection = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    create_performer_view(connection)
+    return connection
 
 
 @st.cache_data
@@ -145,8 +149,7 @@ def q(sql: str, params: tuple = ()) -> pd.DataFrame:
 @st.cache_data
 def bounds() -> tuple[int, int]:
     df = q("SELECT MIN(year) lo, MAX(year) hi FROM shows WHERE year IS NOT NULL")
-    # Cap the upper bound at 1966: the database ends in 1966, and a couple of
-    # stray records with later years should not stretch the slider.
+    # Keep the interface within the published corpus period.
     return int(df.lo[0]), min(int(df.hi[0]), 1966)
 
 
@@ -192,7 +195,7 @@ def show_items(show_id: str) -> pd.DataFrame:
                pi.show_time                               AS "Show time",
                pi.advertising_label                       AS "Label",
                (SELECT GROUP_CONCAT(pf.performer_name, '、')
-                  FROM performers pf
+                  FROM unambiguous_performers pf
                  WHERE pf.item_id = pi.item_id
                    AND pf.performer_name <> '')           AS "Performers"
         FROM performed_items pi
@@ -214,7 +217,7 @@ def where_clause(years, genres, venues, performer):
         params += venues
     if performer:
         conds.append(
-            "pi.item_id IN (SELECT item_id FROM performers "
+            "pi.item_id IN (SELECT item_id FROM unambiguous_performers "
             "WHERE performer_name LIKE ?)"
         )
         params.append(f"%{performer}%")
@@ -261,6 +264,7 @@ WHERE, PARAMS = where_clause(years, sel_genres, sel_venues, sel_performer)
 
 st.title("Shanghai Entertainment, 1907–1966")
 st.caption(
+    f"Published corpus: {PUBLISHED_ITEM_COUNT:,} performed items. "
     "Theater, opera, and cinema programs transcribed from "
     "newspaper advertisements."
 )
@@ -283,7 +287,7 @@ kpi = q(
 perf_count = q(
     f"""
     SELECT COUNT(DISTINCT pf.performer_name) AS performers
-    FROM performers pf
+    FROM unambiguous_performers pf
     JOIN performed_items pi ON pf.item_id = pi.item_id
     JOIN shows s ON pi.show_id = s.show_id
     WHERE {WHERE} AND pf.performer_name <> ''
@@ -292,10 +296,15 @@ perf_count = q(
 )
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Performed items", f"{int(kpi['items'][0]):,}")
+c1.metric("Matching item records", f"{int(kpi['items'][0]):,}")
 c2.metric("Shows", f"{int(kpi['shows'][0]):,}")
 c3.metric("Distinct venues", f"{int(kpi['venues'][0]):,}")
 c4.metric("Named performers", f"{int(perf_count['performers'][0]):,}")
+st.caption(
+    "Counts above reflect the current export and filters; they may differ "
+    "from the published corpus total. Performer results omit links that "
+    "cannot be assigned to a single item. See How to use for details."
+)
 
 (tab_about, tab_guide, tab_time, tab_genre, tab_venue, tab_perf,
  tab_browse, tab_network) = st.tabs(
@@ -419,8 +428,10 @@ corrections at **enpmuc[at]gmail.com**.
 
 ### What's in it?
 
-As a result of the transformation, SHBKYL grew into a database of **139,655
-performed items** and **80,554 shows**. Each entry represents a unique performed
+The published corpus comprises **139,655 performed items** and **80,554 shows**.
+These published figures describe the corpus; the dashboard counts matching
+records in the current export (see *How to use* for the distinction).
+Each entry represents a unique performed
 item, which may be part of a show. The shows took place at 818 different
 performing sites, almost all of which have been located in the city (756
 facilities); only 978 performances took place in unknown or undetermined
@@ -512,8 +523,21 @@ enpmuc[at]gmail.com**.
   "Performer name" field (which filters the whole dashboard) or use the exact
   search box in the **⭐ Performers** tab, which also charts that performer's
   appearances year by year.
-- Any result table can be exported: use **⬇ Download these results (CSV)** in
-  the Browse tab.
+- Export the displayed Browse results using **⬇ Download these results (CSV)**,
+  up to 2,000 rows, rather than all matching records.
+
+### Published total and export records
+
+The published corpus total is **139,655 performed items**. The current SQLite
+export contains 139,730 item records, 75 more than the published total. These
+records have been preserved pending reconciliation with the source database;
+the summary counts and charts always count the actual matching export records.
+
+Some source item identifiers refer to two different programme records. Until
+their original relationships can be recovered, performer links using those
+identifiers are omitted from performer searches, counts, programme casts, and
+networks. The underlying records are preserved. A missing performer in a result
+therefore does not establish that they were absent from the programme.
 
 ### Key concepts
 
@@ -539,8 +563,9 @@ the "Unique" (single-item) view.
 The **🕸 Network** tab draws a *performer–venue network*: blue nodes are
 performers, green nodes are venues, and an edge links a performer to a venue
 where they appeared — the thicker the edge, the more often. Performers who
-shared the same halls are pulled close together, so resident troupes and the
-programming profile of each venue become visible at a glance. Two sliders
+shared the same halls may appear close together. These connections suggest
+questions about programming and affiliations; they do not establish troupe
+membership or that performers appeared together. Two sliders
 control the view: **Performers to include** (the most-billed performers) and
 **Min. appearances per performer–venue link** (raise it to thin the graph,
 lower it to include occasional links). The sidebar filters apply here too, so
@@ -560,7 +585,8 @@ Scroll to zoom, drag to pan, or use the on-graph +/−/Reset buttons.
 
 **Performed-item information**
 
-- **Identifier of the performed item** — unique ID of the individual item.
+- **Identifier of the performed item** — source ID, sometimes shared by
+  different items; the export also assigns each item record a unique row ID.
 - **Title** — the film, opera, or piece performed.
 - **Genre** — as indicated in the source (电影 film, 京剧 Peking opera, etc.).
 - **Showtime** — daytime or evening show.
@@ -707,17 +733,17 @@ with tab_perf:
                          key="perf_tab_search")
     if name:
         appearances = q(
-            """
+            f"""
             SELECT pi.show_id AS show_id, s.date_iso AS date, s.venue AS venue,
                    pi.title AS title, pi.genre AS genre,
                    pi.show_time AS show_time
-            FROM performers pf
+            FROM unambiguous_performers pf
             JOIN performed_items pi ON pf.item_id = pi.item_id
             JOIN shows s ON pi.show_id = s.show_id
-            WHERE pf.performer_name = ?
+            WHERE {WHERE} AND pf.performer_name = ?
             ORDER BY s.date_iso
             """,
-            (name,),
+            PARAMS + (name,),
         )
         st.write(f"**{len(appearances):,}** appearances found for “{name}”.")
         if not appearances.empty:
@@ -776,7 +802,7 @@ with tab_perf:
     top = q(
         f"""
         SELECT pf.performer_name AS performer, COUNT(*) AS appearances
-        FROM performers pf
+        FROM unambiguous_performers pf
         JOIN performed_items pi ON pf.item_id = pi.item_id
         JOIN shows s ON pi.show_id = s.show_id
         WHERE {WHERE} AND pf.performer_name <> ''
@@ -863,7 +889,8 @@ with tab_network:
     st.caption(
         "Each edge links a performer to a venue where they appeared; edge "
         "thickness reflects how often. Performers who shared venues cluster "
-        "together, revealing resident troupes and the profile of each hall. "
+        "together, suggesting affiliations to investigate. Shared venues "
+        "do not establish troupe membership or joint appearances. "
         "The sidebar filters (including Performer name) apply here too."
     )
     ncol1, ncol2 = st.columns(2)
@@ -875,7 +902,7 @@ with tab_network:
     top_perf = q(
         f"""
         SELECT pf.performer_name AS performer, COUNT(*) AS n
-        FROM performers pf
+        FROM unambiguous_performers pf
         JOIN performed_items pi ON pf.item_id = pi.item_id
         JOIN shows s ON pi.show_id = s.show_id
         WHERE {WHERE} AND pf.performer_name <> ''
@@ -894,7 +921,7 @@ with tab_network:
             f"""
             SELECT pf.performer_name AS performer, s.venue AS venue,
                    COUNT(*) AS n
-            FROM performers pf
+            FROM unambiguous_performers pf
             JOIN performed_items pi ON pf.item_id = pi.item_id
             JOIN shows s ON pi.show_id = s.show_id
             WHERE {WHERE} AND pf.performer_name IN ({placeholders})
