@@ -105,5 +105,12 @@ and performer names retain their original Chinese orthography.
 
 ## License
 
-Code released under the MIT License (see `LICENSE`). The underlying historical
-data belongs to its original compilers; check with them before redistributing.
+The historical database and supplementary datasets are licensed under
+[Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/).
+You may copy, share, and adapt the data for non-commercial purposes, with
+appropriate attribution, a link to the licence, and an indication of changes.
+See [LICENSE-DATA.md](LICENSE-DATA.md) for scope, attribution, and the legal terms.
+For commercial-use permission, contact **enpmuc[at]gmail.com**.
+
+The software remains under the [MIT License](LICENSE). Third-party material,
+including the book-cover image, is excluded from the data licence.

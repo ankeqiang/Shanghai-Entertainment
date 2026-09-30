@@ -245,6 +245,11 @@ if os.path.exists(_cover):
         width="stretch",
     )
 
+st.sidebar.markdown(
+    "**Data licence:** [CC BY-NC 4.0]"
+    "(https://creativecommons.org/licenses/by-nc/4.0/)"
+)
+
 st.sidebar.markdown("**How to cite**")
 st.sidebar.caption(
     "Henriot, Christian, and Jiang Jin (姜进). *Shanghai Entertainment: "
@@ -252,7 +257,7 @@ st.sidebar.caption(
     "Jiang Jin, ed., *二十世纪上海报刊娱乐版广告资料长编* "
     "(*Ershi shiji Shanghai baokan yuleban guanggao ziliao changbian*), "
     "4 vols. Shanghai: Shanghai Culture Publishing House, 2015. "
-    "Accessed July 19, 2026. "
+    "Accessed [your date of access]. "
     "https://ankeqiang-shanghai-entertainment-app-dxw8ar.streamlit.app/."
 )
 
@@ -485,6 +490,21 @@ fascinating aspects that these records make it possible to explore. That cannot
 be presented in this introduction, but the
 [Virtual Shanghai](https://www.virtualshanghai.net) platform provides a whole
 collection of maps on the distribution of performing sites across the city.
+
+### Data licence and reuse
+
+The historical database, data exported through this dashboard, and the
+supplementary datasets are licensed under
+[**Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0)**](https://creativecommons.org/licenses/by-nc/4.0/).
+You may copy, share, and adapt the data for non-commercial purposes, with
+appropriate attribution, a link to the licence, and an indication of changes.
+Please credit Christian Henriot and Jiang Jin and the source compendium, using
+the citation in the sidebar with your date of access.
+
+For commercial-use permission, contact **enpmuc[at]gmail.com**.
+See the [data licence notice](https://github.com/ankeqiang/Shanghai-Entertainment/blob/main/LICENSE-DATA.md)
+for scope and the legal terms. The software remains under MIT. Third-party
+material, including the book-cover image, is excluded from the data licence.
         """
     )
 
@@ -607,7 +627,10 @@ The full source code and data for this database are on GitHub:
 online version — including facility addresses, geocoding data, and a GIS pivot
 of the full dataset — are provided in the repository's
 [**`data_extra`**](https://github.com/ankeqiang/Shanghai-Entertainment/tree/main/data_extra)
-folder. For in-depth research or access to the full FileMaker database, please
+folder. The database, CSV exports, and supplementary datasets are available
+under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/);
+see *About → Data licence and reuse* for attribution and scope.
+For in-depth research or access to the full FileMaker database, please
 contact us at enpmuc[at]gmail.com.
         """
     )
